@@ -1,0 +1,617 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>わっしょい！おみこしリズム</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Yuji+Syuku&family=M+PLUS+Rounded+1c:wght@500;800&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{
+  --urushi:#1a0b0b; --shu:#c8102e; --kin:#e8b84a; --kami:#fbf5e8; --sumi:#2a1d1d; --muted:#bfa9a0;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%;background:var(--urushi);color:var(--kami);font-family:"M PLUS Rounded 1c","Hiragino Maru Gothic ProN","Yu Gothic",sans-serif;overflow:hidden;overscroll-behavior:none}
+button{font:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:3px solid var(--kin);outline-offset:2px}
+.brush{font-family:"Yuji Syuku",serif;font-weight:400}
+
+/* ---------- ホスト（テレビ） ---------- */
+#host{position:fixed;inset:0}
+#tv{position:absolute;inset:0;width:100%;height:100%;display:block}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:3vmin;background:rgba(26,11,11,.86)}
+.lobby{display:grid;grid-template-columns:auto 1fr;gap:5vmin;align-items:center;max-width:1500px;width:100%}
+.lobby h1{font-size:8vmin;margin:0;line-height:1.1;color:var(--kin)}
+.lobby h1 small{display:block;font-size:3vmin;color:var(--kami);font-family:"M PLUS Rounded 1c",sans-serif;font-weight:800;margin-top:1.5vmin;letter-spacing:.08em}
+.rule{font-size:2.6vmin;line-height:1.7;margin:2vmin 0 0}
+.rule b{color:var(--kin)}
+.qrbox{background:var(--kami);padding:2.4vmin;border-radius:1.2vmin;display:flex;flex-direction:column;align-items:center;gap:1.2vmin;color:var(--sumi)}
+#qr img,#qr canvas{width:32vmin!important;height:32vmin!important;display:block}
+.code{font-size:2.4vmin;font-weight:800;letter-spacing:.1em}
+.url{font-size:1.5vmin;max-width:32vmin;word-break:break-all;text-align:center;color:#6b5a55}
+.teams{display:grid;grid-template-columns:1fr 1fr;gap:2vmin;margin-top:2.6vmin}
+.team{border-radius:1.2vmin;padding:1.4vmin 1.6vmin;min-height:14vmin}
+.team.r{background:#4a0d17;border:.3vmin solid var(--shu)}
+.team.w{background:#3a3430;border:.3vmin solid var(--kami)}
+.team h3{margin:0 0 1vmin;font-size:3.2vmin;font-weight:400}
+.chips{display:flex;flex-wrap:wrap;gap:1vmin}
+.chip{display:flex;align-items:center;gap:.8vmin;background:rgba(0,0,0,.35);border:0;color:var(--kami);border-radius:99px;padding:.6vmin 1.8vmin .6vmin .8vmin;font-size:2.4vmin;font-weight:800;transition:transform .08s}
+.chip i{width:3vmin;height:3vmin;border-radius:50%;display:inline-block}
+.chip.hit{transform:scale(1.18);background:var(--kin);color:var(--sumi)}
+.chip.empty{color:var(--muted);font-weight:500;background:none}
+.actions{display:flex;gap:1.5vmin;margin-top:2.6vmin;flex-wrap:wrap}
+.btn{border:0;border-radius:1vmin;padding:1.4vmin 3vmin;font-size:2.6vmin;font-weight:800;background:#3a1f1f;color:var(--kami)}
+.btn.go{background:var(--shu);color:#fff}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.hint{font-size:1.8vmin;color:var(--muted);margin-top:1.2vmin;line-height:1.6}
+.result{text-align:center;width:min(1200px,94vw)}
+.result h2{font-size:9vmin;margin:0 0 1vmin;color:var(--kin)}
+.result .syncs{font-size:2.6vmin;margin-bottom:2.4vmin}
+.rgrid{display:grid;grid-template-columns:1fr 1fr;gap:2.4vmin;text-align:left}
+.rgrid ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.8vmin}
+.rgrid li{display:grid;grid-template-columns:3vmin 1fr auto;gap:1.4vmin;align-items:center;background:rgba(0,0,0,.35);border-radius:.8vmin;padding:1vmin 1.6vmin;font-size:2.4vmin;font-weight:800;font-variant-numeric:tabular-nums}
+.rgrid li i{width:3vmin;height:3vmin;border-radius:50%}
+.rgrid li small{font-size:2vmin;color:var(--muted);font-weight:500}
+
+/* ---------- コントローラー（スマホ） ---------- */
+#pad{position:fixed;inset:0;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top,0px) + 16px) 16px calc(env(safe-area-inset-bottom,0px) + 16px);gap:12px;touch-action:none;user-select:none;-webkit-user-select:none;transition:background .25s}
+#pad.r{background:#6e0d1b}
+#pad.w{background:#e9e2d3;color:var(--sumi)}
+.join{margin:auto 0;display:flex;flex-direction:column;gap:14px}
+.join h1{font-size:36px;margin:0;color:var(--kin);line-height:1.2}
+.join label{font-size:14px;color:var(--muted)}
+.join input{font:inherit;font-size:22px;padding:12px 14px;border-radius:10px;border:2px solid #4a2a2a;background:#2c1616;color:var(--kami);width:100%}
+.join .btn{font-size:22px;padding:16px}
+.err{color:#ff9b9b;font-size:15px;min-height:1.4em}
+.me{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:800}
+.me i{width:28px;height:28px;border-radius:50%;border:2px solid rgba(0,0,0,.3)}
+.me b{margin-left:auto;font-size:18px;padding:2px 14px;border-radius:99px;background:rgba(0,0,0,.25)}
+.status{text-align:center;font-size:clamp(32px,10vw,52px);line-height:1.2;margin-top:4px}
+.sub{text-align:center;font-size:16px;opacity:.85;min-height:1.5em}
+.drum{position:relative;flex:1;min-height:220px;border-radius:28px;border:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:radial-gradient(circle at 50% 45%,#f3e6c8 0 38%,#b8864a 39% 44%,#5a2d14 45%);color:var(--sumi);box-shadow:0 6px 0 rgba(0,0,0,.35);transition:transform .06s}
+.drum.on{transform:scale(.96)}
+.drum .g{font-family:"Yuji Syuku",serif;font-size:clamp(64px,24vw,120px);line-height:1}
+.drum span{font-size:13px;color:#f3e6c8;position:absolute;bottom:12px;padding:0 12px;text-align:center}
+.row2{display:flex;gap:10px}
+.row2 .btn{flex:1;font-size:16px;padding:12px}
+#pad.w .row2 .btn{background:#cfc6b4;color:var(--sumi)}
+</style>
+</head>
+<body>
+
+<div id="host" hidden>
+  <canvas id="tv"></canvas>
+  <div class="overlay" id="lobby">
+    <div class="lobby">
+      <div class="qrbox"><div id="qr"></div><div class="code" id="code">接続中…</div><div class="url" id="url"></div></div>
+      <div>
+        <h1 class="brush">わっしょい！<br>おみこしリズム<small>スマホで読み取って参加</small></h1>
+        <p class="rule">太鼓に合わせて<b>スマホを振る</b>と、おみこしが進みます。<br>チーム<b>全員がそろう</b>と大きく進む。紅白で<b>先にゴール</b>した方の勝ち！</p>
+        <div class="teams">
+          <div class="team r"><h3 class="brush">紅組</h3><div class="chips" id="chipsR"></div></div>
+          <div class="team w"><h3 class="brush">白組</h3><div class="chips" id="chipsW"></div></div>
+        </div>
+        <div class="actions">
+          <button class="btn go" id="start" disabled>スタート</button>
+          <button class="btn" id="calib">音ズレ調整</button>
+          <button class="btn" id="addBot">CPUを追加</button>
+          <button class="btn" id="addKey">PCのキーボードで参加</button>
+        </div>
+        <div class="hint">2人以上で始められます。名前をクリックするとチームを移動。PCのキーボード参加はスペースキーで太鼓。<br><span id="calibInfo"></span></div>
+      </div>
+    </div>
+  </div>
+  <div class="overlay" id="result" hidden>
+    <div class="result">
+      <h2 class="brush" id="winner">紅の勝ち！</h2>
+      <div class="syncs" id="syncs"></div>
+      <div class="rgrid"><div class="team r"><h3 class="brush">紅組</h3><ol id="rankR"></ol></div><div class="team w"><h3 class="brush">白組</h3><ol id="rankW"></ol></div></div>
+      <div class="actions" style="justify-content:center"><button class="btn go" id="again">もう一回</button><button class="btn" id="toLobby">チーム・参加者を変える</button></div>
+    </div>
+  </div>
+</div>
+
+<div id="pad" hidden>
+  <div class="join" id="joinForm">
+    <h1 class="brush">わっしょい！<br>おみこしリズム</h1>
+    <label for="name">なまえ（8文字まで）</label>
+    <input id="name" maxlength="8" autocomplete="nickname" placeholder="例：おばあちゃん">
+    <label for="room" id="roomLabel">部屋番号</label>
+    <input id="room" inputmode="numeric" maxlength="6" placeholder="テレビに出ている番号">
+    <button class="btn go" id="joinBtn">参加する</button>
+    <div class="err" id="err"></div>
+  </div>
+  <div id="ctrl" hidden style="display:contents">
+    <div class="me"><i id="myColor"></i><span id="myName"></span><b id="myTeam"></b></div>
+    <div class="status brush" id="status">待っててね</div>
+    <div class="sub" id="sub"></div>
+    <button class="drum" id="drum"><div class="g" id="grade">ドン</div><span id="drumHint">スマホを振る ／ ここをたたいてもOK</span></button>
+    <div class="row2" id="teamRow"><button class="btn" id="teamBtn">チームを変える</button></div>
+  </div>
+</div>
+
+<script>
+const PREFIX='omikoshi-rhythm-';
+const COLORS=['#f4c430','#3fa7d6','#7bc950','#f28cc4','#a57ff0','#ff8c42','#5ce1e6','#ffffff','#ffd6a5','#9bf6ff','#caffbf','#ffadad','#bdb2ff','#fdffb6','#d0a36a','#8ecae6'];
+const TEAM={r:{name:'紅',main:'#c8102e'},w:{name:'白',main:'#fbf5e8'}};
+const GOOD=.08,OK=.16,MAXP=16,ROLLU=.12;
+const params=new URLSearchParams(location.search);
+const joinCode=params.get('join');
+const isPad=joinCode!==null || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && !params.has('host');
+const PEER_OPTS={debug:0};
+
+if(isPad) startPad(); else startHost();
+
+/* =====================================================
+   曲と譜面（すべて秒。0 = 曲の頭）
+   ===================================================== */
+function buildSong(){
+  const S=[
+    {bpm:100,bars:2,type:'intro'},
+    {bpm:100,bars:8,label:'わっしょい',pat:()=>[[0,'n'],[2,'n']]},
+    {bpm:112,bars:8,label:'すこし速く',pat:()=>[[0,'n'],[1,'n'],[2,'n'],[3,'n']]},
+    {bpm:124,bars:8,label:'ソイヤ！',pat:b=>b%2?[[0,'n'],[1,'n'],[2,'big']]:[[0,'n'],[1,'n'],[2,'n'],[3,'n']]},
+    {bpm:136,bars:3,label:'連打！',type:'roll'},
+    {bpm:136,bars:2,label:'',type:'final'}
+  ];
+  let t=0,word=0;const beats=[],notes=[],sections=[];
+  S.forEach((s,si)=>{
+    const spb=60/s.bpm,t0=t,type=s.type||'normal';
+    sections.push({t,label:s.label||'',type});
+    for(let b=0;b<s.bars;b++){
+      const pat=s.pat?s.pat(b):[];
+      for(let k=0;k<4;k++){
+        beats.push({t,bar:b,beat:k,spb,type});
+        for(const [pb,kind] of pat)if(pb===k)notes.push({t,kind,word:kind==='big'?'ソイヤ':(word++%2?'しょい':'わっ')});
+        t+=spb;
+      }
+    }
+    if(type==='roll')notes.push({t:t0,end:t,kind:'roll',word:'連打！'});
+    if(type==='final')notes.push({t:t0,kind:'big',word:'ソイヤ'});
+  });
+  notes.sort((a,b)=>a.t-b.t);notes.forEach((n,i)=>n.id=i);
+  return {beats,notes,sections,end:t};
+}
+
+/* =====================================================
+   音（すべてプログラムで合成したオリジナル音源）
+   ===================================================== */
+let A=null,master=null,noiseBuf=null;
+function initAudio(){
+  if(A){A.resume?.();return}
+  try{A=new (window.AudioContext||window.webkitAudioContext)()}catch(_){return}
+  const comp=A.createDynamicsCompressor();master=A.createGain();master.gain.value=.8;master.connect(comp).connect(A.destination);
+  noiseBuf=A.createBuffer(1,A.sampleRate,A.sampleRate);const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+}
+function outLat(){return A?(A.outputLatency||A.baseLatency||0):0}
+function env(g,t,peak,dur){g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(peak,t+.005);g.gain.exponentialRampToValueAtTime(.0001,t+dur)}
+function noise(t,dur,f,q,v,type){const s=A.createBufferSource();s.buffer=noiseBuf;const fl=A.createBiquadFilter();fl.type=type;fl.frequency.value=f;fl.Q.value=q;const g=A.createGain();env(g,t,v,dur);s.connect(fl).connect(g).connect(master);s.start(t,Math.random()*.5);s.stop(t+dur+.02)}
+function taiko(t,v){const o=A.createOscillator(),g=A.createGain();o.type='sine';o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(52,t+.18);env(g,t,.9*v,.45);o.connect(g).connect(master);o.start(t);o.stop(t+.5);noise(t,.05,900,1,.25*v,'lowpass')}
+function ka(t){noise(t,.04,3000,4,.25,'bandpass')}
+function kane(t,v){for(const [f,a] of [[1320,1],[2090,.6],[2970,.4]]){const o=A.createOscillator(),g=A.createGain();o.type='square';o.frequency.value=f;env(g,t,.05*v*a,.12);o.connect(g).connect(master);o.start(t);o.stop(t+.15)}}
+function crash(t){noise(t,1.4,5000,.5,.35,'highpass')}
+function fue(t,m,d){
+  const o=A.createOscillator(),g=A.createGain(),lfo=A.createOscillator(),lg=A.createGain();
+  o.type='triangle';o.frequency.value=440*2**((m-69)/12);lfo.frequency.value=5.5;lg.gain.value=6;lfo.connect(lg).connect(o.frequency);
+  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.16,t+.04);g.gain.setValueAtTime(.16,t+Math.max(.05,d-.06));g.gain.exponentialRampToValueAtTime(.0001,t+d);
+  o.connect(g).connect(master);o.start(t);lfo.start(t);o.stop(t+d+.02);lfo.stop(t+d+.02);
+}
+function beep(f,d){if(!A)return;const t=A.currentTime,o=A.createOscillator(),g=A.createGain();o.type='triangle';o.frequency.value=f;env(g,t,.18,d);o.connect(g).connect(master);o.start(t);o.stop(t+d+.02)}
+// 笛の旋律（民謡音階、1拍ずつ。-1 = 前の音をのばす、0 = 休み）
+const MEL=[81,81,79,81, 83,-1,81,79, 76,79,81,-1, 79,76,74,-1, 81,83,86,83, 81,-1,79,81, 79,76,79,81, 74,-1,-1,0];
+function scheduleSong(song,T){
+  for(const b of song.beats){
+    const t=T+b.t,s=b.spb;
+    if(b.type==='intro'){ if(b.bar===0){kane(t,.5);kane(t+s/2,.3)} else {taiko(t,b.beat===3?.9:.55);kane(t,.5)} continue }
+    if(b.type==='final'){ if(b.bar===0&&b.beat===0){taiko(t,1.2);kane(t,.9);crash(t)} continue }
+    if(b.type==='roll'){ for(let k=0;k<4;k++)taiko(t+k*s/4,k===0?.85:.5); kane(t,.5);kane(t+s/2,.4); continue }
+    const strong=b.beat===0||b.beat===2;
+    taiko(t,strong?1:.45); if(!strong)ka(t);
+    kane(t,.45);kane(t+s/2,.25);if(b.beat===3)kane(t+s*.75,.25);
+    const idx=(b.bar*4+b.beat)%32,m=MEL[idx];
+    if(m>0){let len=1;while(len<4&&MEL[(idx+len)%32]===-1)len++;fue(t,m,s*len*.92)}
+  }
+}
+
+/* =====================================================
+   ホスト：テレビに映す画面
+   ===================================================== */
+function startHost(){
+  document.getElementById('host').hidden=false;
+  const $=id=>document.getElementById(id);
+  const tv=$('tv'),g=tv.getContext('2d');
+  const WW=1600,WH=900;
+  const store={get:k=>{try{return localStorage.getItem(k)}catch(_){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(_){}}};
+  const players=new Map();
+  const song=buildSong();
+  const K=100/(song.notes.reduce((s,n)=>s+(n.kind==='big'?2:n.kind==='n'?1:0),0)*1.25);
+  let phase='lobby',perfT0=0,botHits=[],pops=[],calibHits=[],calibEnd=0,winner=null;
+  let calib=+(store.get('omikoshi-calib')||0);
+  const teams={r:null,w:null};
+  function resetTeams(){for(const k in teams)teams[k]={prog:0,shown:0,finish:null,sync:0,bounce:0,syncFx:0}}
+  resetTeams();
+  const songT=now=>(now-perfT0)/1000;
+
+  const code=String(Math.floor(100000+Math.random()*900000));
+  const joinUrl=location.origin+location.pathname+'?join='+code;
+  const peer=new Peer(PREFIX+code,PEER_OPTS);
+  peer.on('open',()=>{
+    $('code').textContent='部屋番号 '+code;
+    $('url').textContent=joinUrl;
+    if(/^(localhost|127\.0\.0\.1)$/.test(location.hostname)||location.protocol==='file:')$('url').textContent+='　※このURLはスマホで開けません。公開先のページで開いてください';
+    new QRCode($('qr'),{text:joinUrl,width:512,height:512,correctLevel:QRCode.CorrectLevel.M});
+  });
+  peer.on('error',e=>{$('code').textContent='接続エラー：'+(e.type==='unavailable-id'?'番号が重複しました。再読み込みしてください':e.type)});
+  peer.on('disconnected',()=>{try{peer.reconnect()}catch(_){}});
+  peer.on('connection',conn=>{
+    conn.on('data',msg=>{
+      if(!msg||typeof msg!=='object')return;
+      const now=performance.now();
+      if(msg.t==='ping'){conn.send({t:'pong',c:msg.c,h:now});return}
+      let p=players.get(conn.peer);
+      if(msg.t==='hello'){
+        if(!p){ if(players.size>=MAXP){conn.send({t:'full'});return} p=newPlayer(conn.peer,String(msg.name||'だれか').slice(0,8),'phone');players.set(conn.peer,p); if(phase!=='lobby')p.spectator=true }
+        p.conn=conn;
+        conn.send({t:'welcome',color:p.color,name:p.name});
+        sendState(p);renderLobby();
+      } else if(p&&msg.t==='hit'){ hit(p,+msg.h) }
+      else if(p&&msg.t==='team'&&phase==='lobby'){ p.team=p.team==='r'?'w':'r';sendState(p);renderLobby() }
+    });
+    conn.on('close',()=>{if(players.delete(conn.peer))renderLobby()});
+  });
+
+  function newPlayer(id,name,kind){
+    const used=new Set([...players.values()].map(p=>p.color));
+    const color=COLORS.find(c=>!used.has(c))||COLORS[players.size%COLORS.length];
+    const nr=[...players.values()].filter(p=>p.team==='r').length,nw=players.size-nr;
+    return {id,name,kind,color,team:nr<=nw?'r':'w',conn:null,spectator:false,lastHit:-9,grades:new Map(),stats:null,px:0,py:0,
+      skill:{sd:.035+Math.random()*.06,miss:.04+Math.random()*.12}};
+  }
+  const active=()=>[...players.values()].filter(p=>!p.spectator);
+  const members=tk=>active().filter(p=>p.team===tk);
+
+  function renderLobby(){
+    for(const tk of ['r','w']){
+      const c=$(tk==='r'?'chipsR':'chipsW');c.innerHTML='';
+      const list=[...players.values()].filter(p=>p.team===tk);
+      if(!list.length){c.innerHTML='<span class="chip empty">まだ誰もいません</span>'}
+      for(const p of list){
+        const s=document.createElement('button');s.className='chip';s.title='クリックでチーム移動';p.chip=s;
+        const i=document.createElement('i');i.style.background=p.color;
+        s.append(i,document.createTextNode(p.name+(p.kind==='bot'?'（CPU）':p.kind==='key'?'（PC）':'')));
+        s.onclick=()=>{p.team=p.team==='r'?'w':'r';sendState(p);renderLobby()};
+        c.append(s);
+      }
+    }
+    $('start').disabled=players.size<2;
+    $('addKey').disabled=players.has('key');
+    $('addBot').disabled=players.size>=MAXP;
+    $('calibInfo').textContent='音ズレ補正：'+(calib>=0?'+':'')+calib+'ミリ秒（ずれを感じたら「音ズレ調整」）';
+  }
+  renderLobby();
+
+  $('addBot').onclick=()=>{if(players.size>=MAXP)return;const n=[...players.values()].filter(p=>p.kind==='bot').length+1;const id='bot'+Date.now();players.set(id,newPlayer(id,'CPU'+n,'bot'));renderLobby()};
+  $('addKey').onclick=()=>{if(players.size>=MAXP)return;players.set('key',newPlayer('key','PCの人','key'));renderLobby()};
+  $('start').onclick=startRound;
+  $('again').onclick=startRound;
+  $('calib').onclick=startCalib;
+  $('toLobby').onclick=()=>{phase='lobby';$('result').hidden=true;$('lobby').hidden=false;players.forEach(p=>p.spectator=false);broadcast();renderLobby()};
+  addEventListener('keydown',e=>{
+    if(e.key===' '&&!e.repeat){e.preventDefault();const p=players.get('key');if(p)hit(p,performance.now())}
+    if(e.key==='Enter'&&phase==='lobby'&&!$('start').disabled)startRound();
+  });
+
+  /* ---- 進行 ---- */
+  function startClock(lead){perfT0=performance.now()+(lead+outLat())*1000;return A.currentTime+lead}
+  function startRound(){
+    initAudio();if(!A)return;
+    players.forEach(p=>p.spectator=false);
+    if(active().length<2)return;
+    active().forEach(p=>{p.grades=new Map();p.lastHit=-9;p.stats={good:0,ok:0,miss:0,roll:0}});
+    resetTeams();song.notes.forEach(n=>n.done=false);pops=[];winner=null;
+    scheduleSong(song,startClock(1));
+    // CPUの入力をあらかじめ決めておく
+    botHits=[];
+    for(const p of active()){ if(p.kind!=='bot')continue;
+      for(const n of song.notes){
+        if(n.kind==='roll'){for(let s=n.t+Math.random()*.2;s<n.end;s+=.15+Math.random()*.15)botHits.push({p,st:s});continue}
+        if(Math.random()<p.skill.miss)continue;
+        botHits.push({p,st:n.t+gauss()*p.skill.sd});
+      }
+    }
+    botHits.sort((a,b)=>a.st-b.st);
+    phase='play';$('lobby').hidden=true;$('result').hidden=true;broadcast();
+  }
+  function startCalib(){
+    initAudio();if(!A)return;
+    const T=startClock(.8);
+    for(let i=0;i<12;i++){taiko(T+i*.6,i<4?.6:1);kane(T+i*.6,.5)}
+    calibHits=[];calibEnd=12*.6+.6;phase='calib';$('lobby').hidden=true;broadcast();
+  }
+  function endCalib(){
+    if(calibHits.length>=4){calibHits.sort((a,b)=>a-b);calib=Math.round(calibHits[calibHits.length>>1]*1000);store.set('omikoshi-calib',calib)}
+    phase='lobby';$('lobby').hidden=false;renderLobby();
+    $('calibInfo').textContent=calibHits.length>=4?`調整しました：${calib>=0?'+':''}${calib}ミリ秒（${calibHits.length}回ぶん）`:'うまく測れませんでした。太鼓に合わせてもう一度振ってみてください';
+    broadcast();
+  }
+  function endRound(){
+    phase='result';
+    const r=teams.r,w=teams.w;
+    if(r.finish!=null||w.finish!=null)winner=w.finish==null||(r.finish!=null&&r.finish<w.finish)?'r':'w';
+    else winner=Math.abs(r.prog-w.prog)<.5?'draw':r.prog>w.prog?'r':'w';
+    $('winner').textContent=winner==='draw'?'引き分け！':TEAM[winner].name+'組の勝ち！';
+    $('syncs').textContent=`「そろった！」の回数　紅 ${r.sync}回 ／ 白 ${w.sync}回`;
+    for(const tk of ['r','w']){
+      const ol=$(tk==='r'?'rankR':'rankW');ol.innerHTML='';
+      for(const p of members(tk).sort((a,b)=>score(b)-score(a))){
+        const li=document.createElement('li');const c=document.createElement('i');c.style.background=p.color;
+        const nm=document.createElement('span');nm.textContent=p.name;
+        const st=document.createElement('span');st.innerHTML=`良${p.stats.good} <small>可${p.stats.ok}・連打${p.stats.roll}</small>`;
+        li.append(c,nm,st);ol.append(li);
+      }
+    }
+    $('result').hidden=false;beep(660,.15);setTimeout(()=>beep(880,.3),160);broadcast();
+  }
+  const score=p=>p.stats.good*2+p.stats.ok+p.stats.roll*.2;
+
+  function hit(p,hostTime){
+    if(p.spectator||!isFinite(hostTime))return;
+    const raw=songT(hostTime);
+    if(phase==='lobby'){if(p.chip){p.chip.classList.add('hit');setTimeout(()=>p.chip&&p.chip.classList.remove('hit'),120)}return}
+    if(phase==='calib'){let best=9;for(let i=4;i<12;i++){const d=raw-i*.6;if(Math.abs(d)<Math.abs(best))best=d}if(Math.abs(best)<.35)calibHits.push(best);return}
+    if(phase!=='play')return;
+    judge(p,raw-calib/1000);
+  }
+  function judge(p,st){
+    if(st-p.lastHit<.09)return;p.lastHit=st;
+    for(const n of song.notes)if(n.kind==='roll'&&st>=n.t-.05&&st<=n.end){
+      p.stats.roll++;const m=members(p.team).length||1;addProg(p.team,K*ROLLU/m,st);teams[p.team].bounce=.1;pop(p,'ドン','#e8b84a');return;
+    }
+    let best=null,bd=9;
+    for(const n of song.notes){if(n.t>st+OK)break;if(n.kind==='roll'||n.done||p.grades.has(n.id))continue;const d=Math.abs(st-n.t);if(d<bd){bd=d;best=n}}
+    if(!best||bd>OK)return;
+    const gr=bd<=GOOD?'良':'可';p.grades.set(best.id,gr);p.stats[gr==='良'?'good':'ok']++;
+    pop(p,gr,gr==='良'?'#ffd84a':'#fbf5e8');send(p,{t:'j',g:gr});
+  }
+  function finalize(n,ts){
+    n.done=true;
+    for(const tk of ['r','w']){
+      const m=members(tk);if(!m.length)continue;
+      let sum=0,all=true;
+      for(const p of m){const gr=p.grades.get(n.id);if(gr==='良')sum+=1;else if(gr==='可')sum+=.6;else{all=false;p.stats.miss++;send(p,{t:'j',g:'×'})}}
+      let gain=sum/m.length*(n.kind==='big'?2:1);
+      if(all){gain*=1.5;if(m.length>1){teams[tk].sync++;teams[tk].syncFx=1}}
+      if(gain>0){addProg(tk,gain*K,ts);teams[tk].bounce=.16}
+    }
+  }
+  function addProg(tk,v,ts){const T=teams[tk];if(T.finish!=null)return;T.prog=Math.min(100,T.prog+v);if(T.prog>=100){T.finish=ts;beep(990,.3)}}
+  function pop(p,text,color){pops.push({x:p.px,y:p.py-40,text,color,t:.6})}
+  function send(p,m){if(p.conn&&p.conn.open)p.conn.send(m)}
+  function sendState(p){
+    const s={t:'st',phase,team:p.team,spectator:p.spectator};
+    if(phase==='result'&&p.stats){s.win=winner==='draw'?'draw':winner===p.team?'win':'lose';s.stats=p.stats}
+    send(p,s);
+  }
+  function broadcast(){players.forEach(sendState)}
+
+  function update(){
+    const ts=songT(performance.now());
+    if(phase==='calib'){if(ts>calibEnd)endCalib();return}
+    if(phase!=='play')return;
+    while(botHits.length&&botHits[0].st<=ts){const b=botHits.shift();if(players.has(b.p.id))judge(b.p,b.st)}
+    for(const n of song.notes){if(n.done||n.kind==='roll')continue;if(n.t>ts)break;if(ts>n.t+OK+.35)finalize(n,ts)}
+    if(ts>song.end+.8)endRound();
+  }
+  setInterval(update,16);
+
+  /* ---- 描画 ---- */
+  let scale=1,ox=0,oy=0,lastFrame=performance.now();
+  function resize(){const dpr=Math.min(2,devicePixelRatio||1);tv.width=innerWidth*dpr;tv.height=innerHeight*dpr;scale=Math.min(tv.width/WW,tv.height/WH);ox=(tv.width-WW*scale)/2;oy=(tv.height-WH*scale)/2}
+  addEventListener('resize',resize);resize();
+  const LANE={x0:200,speed:520,y:118};
+  const STREET={r:480,w:820};
+
+  function drawBg(t){
+    const sky=g.createLinearGradient(0,0,0,WH);sky.addColorStop(0,'#10122b');sky.addColorStop(1,'#2a1430');
+    g.fillStyle=sky;g.fillRect(0,0,WW,WH);
+    for(const tk of ['r','w']){
+      const y=STREET[tk];
+      g.fillStyle=tk==='r'?'#3b1a17':'#2f2a26';g.fillRect(0,y-10,WW,70);
+      g.fillStyle='rgba(255,255,255,.05)';for(let x=0;x<WW;x+=80)g.fillRect(x,y+25,40,4);
+      // ちょうちん
+      g.strokeStyle='#5a4a3a';g.lineWidth=2;g.beginPath();g.moveTo(0,y-205);for(let x=0;x<=WW;x+=100)g.quadraticCurveTo(x-50,y-180,x,y-205);g.stroke();
+      for(let x=50;x<WW;x+=100){
+        const glow=.75+.25*Math.sin(t*2+x);
+        g.fillStyle=`rgba(255,120,60,${.18*glow})`;g.beginPath();g.arc(x,y-172,28,0,Math.PI*2);g.fill();
+        g.fillStyle=tk==='r'?'#e0402a':'#f2e6c9';g.beginPath();g.ellipse(x,y-172,13,17,0,0,Math.PI*2);g.fill();
+        g.fillStyle='#2a1d1d';g.fillRect(x-7,y-191,14,4);g.fillRect(x-7,y-157,14,4);
+      }
+      // ゴールの鳥居
+      const gx=1500;g.fillStyle='#c8102e';
+      g.fillRect(gx-55,y-150,14,160);g.fillRect(gx+41,y-150,14,160);
+      g.fillRect(gx-75,y-138,150,12);g.fillStyle='#2a1d1d';g.fillRect(gx-85,y-160,170,16);
+      g.fillStyle='#fbf5e8';g.font='800 18px "M PLUS Rounded 1c",sans-serif';g.textAlign='center';g.fillText('ゴール',gx,y+40);
+    }
+  }
+  function drawLane(ts){
+    g.fillStyle='rgba(10,5,5,.75)';g.beginPath();g.roundRect(20,24,WW-40,188,20);g.fill();
+    g.strokeStyle='rgba(232,184,74,.35)';g.lineWidth=2;g.beginPath();g.moveTo(40,LANE.y);g.lineTo(WW-40,LANE.y);g.stroke();
+    // 拍に合わせて光る判定の輪
+    let pulse=0;for(const b of song.beats){const d=ts-b.t;if(d>=0&&d<.15)pulse=1-d/.15}
+    g.fillStyle=`rgba(232,184,74,${.12+pulse*.35})`;g.beginPath();g.arc(LANE.x0,LANE.y,62,0,Math.PI*2);g.fill();
+    g.strokeStyle='#e8b84a';g.lineWidth=5;g.beginPath();g.arc(LANE.x0,LANE.y,58+pulse*6,0,Math.PI*2);g.stroke();
+    const nx=t=>LANE.x0+(t-ts)*LANE.speed;
+    for(let i=song.notes.length-1;i>=0;i--){
+      const n=song.notes[i];
+      if(n.kind==='roll'){
+        const a=nx(n.t),b=nx(n.end);if(b<30||a>WW)continue;
+        g.fillStyle='#e8b84a';g.beginPath();g.roundRect(Math.max(40,a-44),LANE.y-40,Math.max(0,Math.min(WW-40,b)-Math.max(40,a-44)),80,40);g.fill();
+        g.fillStyle='#2a1d1d';g.font='52px "Yuji Syuku",serif';g.textAlign='left';g.fillText('連打！ ふりまくれ！',Math.max(60,a-10),LANE.y+18);
+        continue;
+      }
+      const x=nx(n.t);if(x<-80||x>WW+80)continue;
+      if(n.done&&ts>n.t+.1)continue;
+      const r=n.kind==='big'?58:44;
+      g.fillStyle=n.kind==='big'?'#e8b84a':'#c8102e';g.beginPath();g.arc(x,LANE.y,r,0,Math.PI*2);g.fill();
+      g.strokeStyle='#fbf5e8';g.lineWidth=4;g.stroke();
+      g.fillStyle=n.kind==='big'?'#2a1d1d':'#fff';g.font=`${n.kind==='big'?34:30}px "Yuji Syuku",serif`;g.textAlign='center';g.fillText(n.word,x,LANE.y+11);
+    }
+    // 段の名前と、始まりのカウント
+    let sec=null;for(const s of song.sections)if(ts>=s.t-1)sec=s;
+    if(sec&&sec.label){g.fillStyle='#e8b84a';g.font='30px "Yuji Syuku",serif';g.textAlign='right';g.fillText(sec.label,WW-50,62)}
+    for(const b of song.beats){if(b.type==='intro'&&b.bar===1&&ts>=b.t&&ts<b.t+b.spb){
+      g.fillStyle='#fbf5e8';g.font='120px "Yuji Syuku",serif';g.textAlign='center';g.fillText(String(4-b.beat),WW/2,LANE.y+44)}}
+    if(ts<0&&ts>-5){g.fillStyle='#fbf5e8';g.font='80px "Yuji Syuku",serif';g.textAlign='center';g.fillText('よーい…',WW/2,LANE.y+28)}
+  }
+  function drawMikoshi(tk,t,dt){
+    const T=teams[tk],y=STREET[tk];
+    T.shown+=(T.prog-T.shown)*Math.min(1,dt*6);
+    T.bounce=Math.max(0,T.bounce-dt);T.syncFx=Math.max(0,T.syncFx-dt*.8);
+    const x=300+T.shown/100*(1500-300-150),lift=Math.sin(Math.min(1,T.bounce/.16)*Math.PI)*28+Math.sin(t*6)*2;
+    const m=members(tk);
+    // 担ぎ手
+    const n=Math.max(1,m.length),span=Math.min(300,80+n*34);
+    m.forEach((p,i)=>{
+      const px=x-span/2+(n===1?span/2:i*span/(n-1)),py=y-lift*.4;
+      p.px=px;p.py=py-30;
+      g.fillStyle='rgba(0,0,0,.3)';g.beginPath();g.ellipse(px,y+18,18,6,0,0,Math.PI*2);g.fill();
+      g.fillStyle=p.color;g.beginPath();g.arc(px,py-8,18,0,Math.PI*2);g.fill();g.lineWidth=3;g.strokeStyle='#2a1d1d';g.stroke();
+      g.fillStyle=tk==='r'?'#c8102e':'#fbf5e8';g.fillRect(px-18,py-26,36,6); // はちまき
+      g.font='800 17px "M PLUS Rounded 1c",sans-serif';g.textAlign='center';g.lineWidth=4;g.strokeStyle='#1a0b0b';g.strokeText(p.name,px,py+30);g.fillStyle='#fbf5e8';g.fillText(p.name,px,py+30);
+    });
+    const by=y-40-lift;
+    g.fillStyle='#6b4423';g.fillRect(x-span/2-40,by,span+80,10);
+    g.fillStyle='#1a1010';g.fillRect(x-50,by-78,100,78);
+    g.strokeStyle='#e8b84a';g.lineWidth=5;g.strokeRect(x-50,by-78,100,78);
+    g.fillStyle=TEAM[tk].main;g.fillRect(x-30,by-62,60,46);
+    g.fillStyle='#e8b84a';g.beginPath();g.moveTo(x-78,by-78);g.quadraticCurveTo(x-30,by-92,x,by-138);g.quadraticCurveTo(x+30,by-92,x+78,by-78);g.closePath();g.fill();
+    g.beginPath();g.arc(x,by-146,10,0,Math.PI*2);g.fill();
+    // チーム名と進み具合
+    g.fillStyle=TEAM[tk].main;g.beginPath();g.arc(70,y-80,46,0,Math.PI*2);g.fill();
+    g.fillStyle=tk==='r'?'#fff':'#2a1d1d';g.font='56px "Yuji Syuku",serif';g.textAlign='center';g.fillText(TEAM[tk].name,70,y-62);
+    g.fillStyle='#fbf5e8';g.font='800 20px "M PLUS Rounded 1c",sans-serif';g.fillText(Math.floor(T.prog)+'%',70,y-10);
+    if(T.syncFx>0){g.globalAlpha=Math.min(1,T.syncFx*1.5);g.fillStyle='#ffd84a';g.font='54px "Yuji Syuku",serif';g.fillText('そろった！',Math.min(x+220,WW-150),by-90-(1-T.syncFx)*30);g.globalAlpha=1}
+    if(T.finish!=null){g.fillStyle='#ffd84a';g.font='64px "Yuji Syuku",serif';g.fillText('ゴール！',x,by-170)}
+  }
+  function drawCalib(ts){
+    g.fillStyle='rgba(10,5,5,.8)';g.fillRect(0,0,WW,WH);
+    g.textAlign='center';g.fillStyle='#e8b84a';g.font='72px "Yuji Syuku",serif';g.fillText('音ズレ調整',WW/2,260);
+    g.fillStyle='#fbf5e8';g.font='800 34px "M PLUS Rounded 1c",sans-serif';
+    g.fillText(ts<2.4?'はじめの4回は聞くだけ。':'太鼓に合わせて、みんなでスマホを振って！',WW/2,340);
+    for(let i=0;i<12;i++){
+      const x=WW/2+(i-5.5)*90,lit=ts>=i*.6&&ts<i*.6+.2;
+      g.fillStyle=lit?'#ffd84a':i<4?'#5a4a3a':'#c8102e';g.beginPath();g.arc(x,470,lit?34:26,0,Math.PI*2);g.fill();
+    }
+    g.fillStyle='#bfa9a0';g.font='500 26px "M PLUS Rounded 1c",sans-serif';g.fillText('測れた回数：'+calibHits.length,WW/2,580);
+  }
+  function loop(now){
+    const dt=Math.min(.1,(now-lastFrame)/1000);lastFrame=now;
+    const t=now/1000,ts=songT(now);
+    g.setTransform(1,0,0,1,0,0);g.fillStyle='#1a0b0b';g.fillRect(0,0,tv.width,tv.height);
+    g.setTransform(scale,0,0,scale,ox,oy);
+    drawBg(t);
+    drawLane(phase==='play'?ts:-99);
+    drawMikoshi('r',t,dt);drawMikoshi('w',t,dt);
+    for(const p of pops){p.t-=dt;g.globalAlpha=Math.max(0,Math.min(1,p.t*3));g.fillStyle=p.color;g.font='40px "Yuji Syuku",serif';g.textAlign='center';g.fillText(p.text,p.x,p.y-(.6-p.t)*60)}
+    g.globalAlpha=1;pops=pops.filter(p=>p.t>0);
+    if(phase==='calib')drawCalib(ts);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+}
+
+/* =====================================================
+   コントローラー：スマホの画面
+   ===================================================== */
+function startPad(){
+  const $=id=>document.getElementById(id);
+  $('pad').hidden=false;
+  const store={get:k=>{try{return localStorage.getItem(k)}catch(_){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(_){}}};
+  $('name').value=store.get('omikoshi-name')||'';
+  if(joinCode){$('room').value=joinCode;$('room').hidden=true;$('roomLabel').hidden=true}
+  let peer=null,conn=null,wake=null,offset=null,phase='lobby',shakes=0,hasMotion=false;
+  const samples=[];
+
+  $('joinBtn').onclick=async()=>{
+    const name=$('name').value.trim(),room=$('room').value.trim();
+    if(!name){$('err').textContent='なまえを入れてください';return}
+    if(!/^\d{6}$/.test(room)){$('err').textContent='部屋番号は6桁の数字です';return}
+    store.set('omikoshi-name',name);
+    // iPhoneは動きセンサーの許可がボタン操作の中で必要
+    try{if(typeof DeviceMotionEvent!=='undefined'&&typeof DeviceMotionEvent.requestPermission==='function')await DeviceMotionEvent.requestPermission()}catch(_){}
+    addEventListener('devicemotion',onMotion);
+    try{wake=await navigator.wakeLock?.request('screen')}catch(_){}
+    $('joinBtn').disabled=true;$('err').textContent='つないでいます…';
+    connect(name,room);
+  };
+  function connect(name,room){
+    peer=new Peer(PEER_OPTS);
+    peer.on('open',()=>{
+      conn=peer.connect(PREFIX+room,{reliable:true});
+      const to=setTimeout(()=>{if(!conn.open){$('err').textContent='つながりません。部屋番号とテレビの画面を確かめてください';$('joinBtn').disabled=false}},9000);
+      conn.on('open',()=>{clearTimeout(to);conn.send({t:'hello',name})});
+      conn.on('data',onMsg);
+      conn.on('close',()=>{set('切断されました','ページを再読み込みして入り直してください');$('pad').className=''});
+    });
+    peer.on('error',e=>{$('err').textContent=e.type==='peer-unavailable'?'その部屋番号は見つかりません':'エラー：'+e.type;$('joinBtn').disabled=false});
+  }
+  // テレビとスマホの時計合わせ（往復がいちばん速かったときの値を使う）
+  function ping(){if(conn&&conn.open)conn.send({t:'ping',c:performance.now()})}
+  function burst(n){for(let i=0;i<n;i++)setTimeout(ping,i*120)}
+  function onMsg(m){
+    if(m.t==='pong'){const rtt=performance.now()-m.c;samples.push({rtt,off:m.h-(m.c+rtt/2)});if(samples.length>30)samples.shift();offset=samples.reduce((a,b)=>b.rtt<a.rtt?b:a).off;return}
+    if(m.t==='full'){$('err').textContent='満員です（16人まで）';return}
+    if(m.t==='welcome'){
+      $('joinForm').hidden=true;$('ctrl').hidden=false;
+      $('myColor').style.background=m.color;$('myName').textContent=m.name;
+      burst(10);setInterval(()=>burst(5),8000);
+    }
+    if(m.t==='st')showState(m);
+    if(m.t==='j'){showGrade(m.g);if(m.g==='良')try{navigator.vibrate?.(30)}catch(_){}}
+  }
+  function showState(s){
+    phase=s.phase;
+    $('pad').className=s.team;$('myTeam').textContent=s.team==='r'?'紅組':'白組';
+    $('teamRow').hidden=s.phase!=='lobby';
+    if(s.spectator){set('次から参加','このゲームが終わるまで見ててね');return}
+    if(s.phase==='lobby')set('待っててね',hasMotion||shakes?'振ってみよう。テレビの名前が光ればOK':'スマホを振ってみよう');
+    else if(s.phase==='calib')set('太鼓に合わせて！','テレビの太鼓の音に合わせて振ってね');
+    else if(s.phase==='play')set('わっしょい！','テレビの太鼓に合わせて振る');
+    else if(s.phase==='result'&&s.stats)set(s.win==='win'?'勝ち！':s.win==='lose'?'負け…':'引き分け',`良 ${s.stats.good}・可 ${s.stats.ok}・連打 ${s.stats.roll}`);
+  }
+  function set(a,b){$('status').textContent=a;$('sub').textContent=b}
+  let gradeTimer=0;
+  function showGrade(gr){$('grade').textContent=gr;clearTimeout(gradeTimer);gradeTimer=setTimeout(()=>$('grade').textContent='ドン',400)}
+
+  function hit(tLocal){
+    shakes++;
+    const d=$('drum');d.classList.add('on');setTimeout(()=>d.classList.remove('on'),80);
+    if(offset==null||!conn||!conn.open)return;
+    conn.send({t:'hit',h:tLocal+offset});
+  }
+  // 振った瞬間を見つける（加速度が強くなった瞬間）
+  const TH=12;let armed=true,lastShake=0,grav=null;
+  function onMotion(e){
+    let m;const a=e.acceleration;
+    if(a&&a.x!=null)m=Math.hypot(a.x,a.y,a.z);
+    else{const ag=e.accelerationIncludingGravity;if(!ag||ag.x==null)return;
+      if(!grav)grav={x:ag.x,y:ag.y,z:ag.z};grav.x+=(ag.x-grav.x)*.1;grav.y+=(ag.y-grav.y)*.1;grav.z+=(ag.z-grav.z)*.1;
+      m=Math.hypot(ag.x-grav.x,ag.y-grav.y,ag.z-grav.z)}
+    hasMotion=true;
+    const now=performance.now();
+    if(armed&&m>TH&&now-lastShake>160){armed=false;lastShake=now;hit(now)}
+    else if(!armed&&m<TH*.45)armed=true;
+  }
+  $('drum').addEventListener('pointerdown',e=>{e.preventDefault();hit(performance.now())});
+  $('teamBtn').onclick=()=>{if(conn&&conn.open)conn.send({t:'team'})};
+  document.addEventListener('visibilitychange',async()=>{if(document.visibilityState==='visible'&&wake!==null){try{wake=await navigator.wakeLock?.request('screen')}catch(_){}}});
+}
+
+function gauss(){let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
+</script>
+</body>
+</html>
