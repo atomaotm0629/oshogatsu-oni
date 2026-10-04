@@ -79,6 +79,11 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--kin);outline-of
 .row2{display:flex;gap:10px}
 .row2 .btn{flex:1;font-size:16px;padding:12px}
 #pad.w .row2 .btn{background:#cfc6b4;color:var(--sumi)}
+
+/* 通信エラー時の再読み込みバー（全ゲーム共通） */
+.netbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 16px);z-index:100;display:flex;gap:12px;align-items:center;background:#2c1616;border:2px solid #c8102e;color:#fbf5e8;border-radius:12px;padding:10px 10px 10px 16px;font-size:16px;line-height:1.5;width:max-content;max-width:calc(100% - 32px);box-shadow:0 6px 20px rgba(0,0,0,.45)}
+.netbar button{border:0;border-radius:8px;padding:12px 16px;font:inherit;font-weight:800;background:#c8102e;color:#fff;white-space:nowrap;cursor:pointer}
+a.btn{text-decoration:none;display:inline-flex;align-items:center}
 </style>
 </head>
 <body>
@@ -100,7 +105,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--kin);outline-of
           <button class="btn" id="calib">音ズレ調整</button>
           <button class="btn" id="addBot">CPUを追加</button>
           <button class="btn" id="addKey">PCのキーボードで参加</button>
-        </div>
+        <a class="btn" href="../">ゲーム一覧</a></div>
         <div class="hint">2人以上で始められます。名前をクリックするとチームを移動。PCのキーボード参加はスペースキーで太鼓。<br><span id="calibInfo"></span></div>
       </div>
     </div>
@@ -134,7 +139,13 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--kin);outline-of
   </div>
 </div>
 
+<div class="netbar" id="netbar" role="alert" hidden><span id="netmsg"></span><button id="netreload">再読み込み</button></div>
 <script>
+// 通信エラー時の再読み込みバー。スマホは部屋番号付きで開き直すので、なまえを入れて押すだけで戻れる
+function showNetError(msg,room){
+  const b=document.getElementById('netbar');document.getElementById('netmsg').textContent=msg;b.hidden=false;
+  document.getElementById('netreload').onclick=()=>{ if(room)location.href=location.pathname+'?join='+room; else location.reload(); };
+}
 const PREFIX='omikoshi-rhythm-';
 const COLORS=['#f4c430','#3fa7d6','#7bc950','#f28cc4','#a57ff0','#ff8c42','#5ce1e6','#ffffff','#ffd6a5','#9bf6ff','#caffbf','#ffadad','#bdb2ff','#fdffb6','#d0a36a','#8ecae6'];
 const TEAM={r:{name:'紅',main:'#c8102e'},w:{name:'白',main:'#fbf5e8'}};
@@ -245,7 +256,7 @@ function startHost(){
     if(/^(localhost|127\.0\.0\.1)$/.test(location.hostname)||location.protocol==='file:')$('url').textContent+='　※このURLはスマホで開けません。公開先のページで開いてください';
     new QRCode($('qr'),{text:joinUrl,width:512,height:512,correctLevel:QRCode.CorrectLevel.M});
   });
-  peer.on('error',e=>{$('code').textContent='接続エラー：'+(e.type==='unavailable-id'?'番号が重複しました。再読み込みしてください':e.type)});
+  peer.on('error',e=>{ showNetError('テレビ側の通信が切れました。再読み込みすると部屋番号が変わるので、スマホは新しいQRで入り直してください'); $('code').textContent='接続エラー：'+(e.type==='unavailable-id'?'番号が重複しました。再読み込みしてください':e.type)});
   peer.on('disconnected',()=>{try{peer.reconnect()}catch(_){}});
   peer.on('connection',conn=>{
     conn.on('data',msg=>{
@@ -555,9 +566,9 @@ function startPad(){
       const to=setTimeout(()=>{if(!conn.open){$('err').textContent='つながりません。部屋番号とテレビの画面を確かめてください';$('joinBtn').disabled=false}},9000);
       conn.on('open',()=>{clearTimeout(to);conn.send({t:'hello',name})});
       conn.on('data',onMsg);
-      conn.on('close',()=>{set('切断されました','ページを再読み込みして入り直してください');$('pad').className=''});
+      conn.on('close',()=>{set('切断されました','下の「再読み込み」で入り直せます');$('pad').className='';showNetError('テレビとの通信が切れました',room)});
     });
-    peer.on('error',e=>{$('err').textContent=e.type==='peer-unavailable'?'その部屋番号は見つかりません':'エラー：'+e.type;$('joinBtn').disabled=false});
+    peer.on('error',e=>{if(e.type!=='peer-unavailable')showNetError('通信エラーが起きました（'+e.type+'）',room);$('err').textContent=e.type==='peer-unavailable'?($('room').hidden=$('roomLabel').hidden=false,'その部屋番号は見つかりません。テレビに出ている新しい部屋番号を入れてください'):'エラー：'+e.type;$('joinBtn').disabled=false});
   }
   // テレビとスマホの時計合わせ（往復がいちばん速かったときの値を使う）
   function ping(){if(conn&&conn.open)conn.send({t:'ping',c:performance.now()})}
